@@ -9,4 +9,61 @@
     is_available BOOLEAN NOT NULL DEFAULT TRUE,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);'
+);
+
+#UPDATED Product Table
+
+CREATE TABLE products (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+    name VARCHAR(255) NOT NULL,
+    description TEXT,
+
+    categoryid INTEGER NOT NULL,
+
+    mrp_price NUMERIC(10, 2) NOT NULL,
+    selling_price NUMERIC(10, 2) NOT NULL,
+
+    product_image_url TEXT,
+
+    is_available BOOLEAN DEFAULT TRUE,
+
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT fk_product_category
+        FOREIGN KEY (categoryid)
+        REFERENCES categories(id)
+        ON DELETE RESTRICT,
+
+    CHECK (mrp_price >= 0),
+    CHECK (selling_price >= 0 AND selling_price <= mrp_price)
+);
+CREATE TABLE product_batches (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+    product_id UUID NOT NULL,
+
+    batch_number VARCHAR(100),
+
+    quantity_received INTEGER NOT NULL,
+    available_quantity INTEGER NOT NULL,
+
+    manufacturing_date DATE,
+    expiry_date DATE NOT NULL,
+
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT fk_batch_product
+        FOREIGN KEY (product_id)
+        REFERENCES products(id)
+        ON DELETE RESTRICT,
+
+    CHECK (quantity_received >= 0),
+    CHECK (available_quantity >= 0),
+    CHECK (available_quantity <= quantity_received)
+);
+'
+
+

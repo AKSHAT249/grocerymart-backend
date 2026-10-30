@@ -1,22 +1,22 @@
-import 'dotenv/config';
-import pg from 'pg';
+import { Pool } from "pg";
+import dotenv from "dotenv";
+dotenv.config();
 
-const pool = new pg.Pool({
+const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
+  ssl: process.env.NODE_ENV === "production"
+    ? { rejectUnauthorized: false }
+    : false,
+  max: 10,
+  idleTimeoutMillis: 3000000,
+  connectionTimeoutMillis: 1000000,
 });
 
-// Logs unexpected errors on idle connections instead of crashing silently
-pool.on('error', (err) => console.error('Unexpected DB error:', err.message));
+// Handle unexpected idle connection errors
 
-// Call once at startup to confirm the connection works
-export async function testConnection() {
-  try {
-    const { rows } = await pool.query('SELECT NOW() AS time');
-    console.log('PostgreSQL connected at', rows[0].time);
-  } catch (err) {
-    console.error('PostgreSQL connection failed:', err.message);
-    process.exit(1);
-  }
-}
+
+pool.on("error", (err) => {
+  console.error("Unexpected PostgreSQL pool error:", err.message);
+});
 
 export default pool;

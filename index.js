@@ -3,10 +3,10 @@ import cors from "cors";
 import dotenv from "dotenv";
 import pool from "./connection/db.js";  
 import productsRoute from "./routes/productsRoute/index.js";
+import categoryRoute from "./routes/categoryRoute/index.js";
+import authRoute from "./routes/authRoute/index.js";
 
 await pool.connect();
-
-dotenv.config();
 
 const app = express();
 
@@ -18,7 +18,10 @@ app.use(express.json());
 app.get("/", (req, res) => {
   res.send("Hello World");
 });
-app.use("/products", productsRoute);
+app.use("/api/products", productsRoute);
+app.use("/api/categories", categoryRoute);
+app.use("/api/auth", authRoute);
+
 
 
 
