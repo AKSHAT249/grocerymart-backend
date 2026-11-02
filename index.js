@@ -5,6 +5,7 @@ import pool from "./connection/db.js";
 import productsRoute from "./routes/productsRoute/index.js";
 import categoryRoute from "./routes/categoryRoute/index.js";
 import authRoute from "./routes/authRoute/index.js";
+import subcategoryRoute from "./routes/subcategoryRoute/index.js";
 
 await pool.connect();
 
@@ -21,7 +22,7 @@ app.get("/", (req, res) => {
 app.use("/api/products", productsRoute);
 app.use("/api/categories", categoryRoute);
 app.use("/api/auth", authRoute);
-
+app.use("/api/subcategories", subcategoryRoute);
 
 
 

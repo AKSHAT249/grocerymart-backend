@@ -1,16 +1,12 @@
 
 
-
+import pool from "../../connection/db.js";
 
 const fetchSubcategories = async (req, res) => {
     try{
         const { categoryId } = req.params;
-        const subcategories = await Subcategory.find({ category: categoryId });
-        return res.status(200).json({
-            success: true,
-            message: "Subcategories fetched successfully",
-            data: subcategories
-        })
+        const { rows } = await pool.query("SELECT * FROM subcategories WHERE category_id = $1", [categoryId]);
+        return res.status(200).json(rows);
 
     }catch(error){
         return res.status(500).json({
@@ -20,3 +16,5 @@ const fetchSubcategories = async (req, res) => {
         })
     }
 }
+
+export { fetchSubcategories };
