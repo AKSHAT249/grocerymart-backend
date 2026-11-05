@@ -1,6 +1,7 @@
 
 
 import pool from "../../connection/db.js";
+import uploadToCloudinary from "../../utils/uploadToCloudinary.js";
 
 const fetchSubcategories = async (req, res) => {
     try{
@@ -17,4 +18,136 @@ const fetchSubcategories = async (req, res) => {
     }
 }
 
-export { fetchSubcategories };
+
+const createSubcategory = async (req, res) => {
+    const categoryId = req.params.categoryId;
+    try{
+        const { name } = req.body;
+        const { file } = req;
+        const { url, public_id } = await uploadToCloudinary(file.buffer, "subcategories");
+        const { rows } = await pool.query("INSERT INTO subcategories (name, category_id, image_url, image_public_id) VALUES ($1, $2, $3, $4) RETURNING *", [name, categoryId, url, public_id]);
+        return res.status(201).json({
+            success: true,
+            message: "Subcategory created successfully",
+            data: rows[0]
+        });
+    }catch(error){
+        return res.status(500).json({
+            success: false,
+            message: "Error in creating subcategory",
+            error: error.message
+        })
+    }
+}
+
+
+// const updateSubcategory = async (req, res) => {
+//     try{
+//         const { subcategoryId } = req.params;
+//         const { name } = req.body;
+//         const { file } = req;
+//         const { url, public_id } = await uploadToCloudinary(file.buffer, "subcategories");
+//         const { rows } = await pool.query("UPDATE subcategories SET name = $1, image_url = $2, image_public_id = $3 WHERE id = $4 RETURNING *", [name, url, public_id, subcategoryId]);
+//         return res.status(200).json({
+//             success: true,
+//             message: "Subcategory updated successfully",
+//             data: rows[0]
+//         });
+//     }catch(error){
+//         return res.status(500).json({
+//             success: false,
+//             message: "Error in updating subcategory",
+//             error: error.message
+//         })
+//     }
+// }
+
+
+const updateSubcategory = async (req, res) => {
+    try {
+        const { subcategoryId } = req.params;
+        const { name } = req.body;
+        const file = req.file;
+
+        let rows;
+
+        if (file) {
+            // Upload new image to Cloudinary
+            const { url, public_id } = await uploadToCloudinary(
+                file.buffer,
+                "subcategories"
+            );
+
+            // Update name and image
+            const result = await pool.query(
+                `UPDATE subcategories
+                 SET name = $1,
+                     image_url = $2,
+                     image_public_id = $3
+                 WHERE id = $4
+                 RETURNING *`,
+                [name, url, public_id, subcategoryId]
+            );
+
+            rows = result.rows;
+
+        } else {
+            // Update only name; preserve existing image
+            const result = await pool.query(
+                `UPDATE subcategories
+                 SET name = $1
+                 WHERE id = $2
+                 RETURNING *`,
+                [name, subcategoryId]
+            );
+
+            rows = result.rows;
+        }
+
+        if (rows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: "Subcategory not found"
+            });
+        }
+
+        return res.status(200).json({
+            success: true,
+            message: "Subcategory updated successfully",
+            data: rows[0]
+        });
+
+    } catch (error) {
+        console.error("Update subcategory error:", error);
+
+        return res.status(500).json({
+            success: false,
+            message: "Error in updating subcategory",
+            error: error.message
+        });
+    }
+};
+
+
+
+const deleteSubcategory = async (req, res) => {
+    try{
+        const { subcategoryId } = req.params;
+        const { rows } = await pool.query("DELETE FROM subcategories WHERE id = $1 RETURNING *", [subcategoryId]);
+        return res.status(200).json({
+            success: true,
+            message: "Subcategory deleted successfully",
+            data: rows[0]
+        });
+    }catch(error){
+        return res.status(500).json({
+            success: false,
+            message: "Error in deleting subcategory",
+            error: error.message
+        })
+    }
+}
+
+
+
+export { fetchSubcategories, createSubcategory, updateSubcategory, deleteSubcategory };

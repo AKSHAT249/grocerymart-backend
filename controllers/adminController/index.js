@@ -49,7 +49,7 @@ const adminLogin = async (req, res) => {
           role: "admin",
         },
         process.env.JWT_SECRET,
-        { expiresIn: "1d" }
+        { expiresIn: "1m" }
       );
   
       res.json({

@@ -2,9 +2,19 @@ import pool from "../../connection/db.js";
 
 
 
-const fetchCategories = async (req, res) => {
+const fetchActiveCategories = async (req, res) => {
     try{
         const { rows } = await pool.query("SELECT * FROM categories WHERE is_active = true");
+        return res.status(200).json({data: rows, message: "Categories fetched successfully"});
+    } catch (error) {
+        console.error("Error fetching categories:", error);
+        return res.status(500).json({message: "Internal server error"});
+    }
+}
+
+const fetchAllCategories = async (req, res) => {
+    try{
+        const { rows } = await pool.query("SELECT * FROM categories");
         return res.status(200).json({data: rows, message: "Categories fetched successfully"});
     } catch (error) {
         console.error("Error fetching categories:", error);
@@ -63,4 +73,4 @@ const deleteCategory = async (req, res) => {
     }
 }
 
-export { fetchCategories, getCategoryById, createCategory, updateCategory, deleteCategory };
+export { fetchActiveCategories, fetchAllCategories, getCategoryById, createCategory, updateCategory, deleteCategory };
