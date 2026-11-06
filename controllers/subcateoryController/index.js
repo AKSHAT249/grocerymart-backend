@@ -66,45 +66,42 @@ const createSubcategory = async (req, res) => {
 const updateSubcategory = async (req, res) => {
     try {
         const { subcategoryId } = req.params;
-        const { name } = req.body;
-        const file = req.file;
+        const { name, is_active } = req.body;
 
-        let rows;
+        let image_url = null;
+        let image_public_id = null;
 
-        if (file) {
-            // Upload new image to Cloudinary
-            const { url, public_id } = await uploadToCloudinary(
-                file.buffer,
+        if (req.file) {
+            const uploaded = await uploadToCloudinary(
+                req.file.buffer,
                 "subcategories"
             );
 
-            // Update name and image
-            const result = await pool.query(
-                `UPDATE subcategories
-                 SET name = $1,
-                     image_url = $2,
-                     image_public_id = $3
-                 WHERE id = $4
-                 RETURNING *`,
-                [name, url, public_id, subcategoryId]
-            );
-
-            rows = result.rows;
-
-        } else {
-            // Update only name; preserve existing image
-            const result = await pool.query(
-                `UPDATE subcategories
-                 SET name = $1
-                 WHERE id = $2
-                 RETURNING *`,
-                [name, subcategoryId]
-            );
-
-            rows = result.rows;
+            image_url = uploaded.url;
+            image_public_id = uploaded.public_id;
         }
 
-        if (rows.length === 0) {
+        const result = await pool.query(
+            `UPDATE subcategories
+             SET
+                name = COALESCE($1, name),
+                is_active = COALESCE($2, is_active),
+                image_url = COALESCE($3, image_url),
+                image_public_id = COALESCE($4, image_public_id)
+             WHERE id = $5
+             RETURNING *`,
+            [
+                name || null,
+                is_active !== undefined
+                    ? is_active === "true" || is_active === true
+                    : null,
+                image_url,
+                image_public_id,
+                subcategoryId
+            ]
+        );
+
+        if (result.rows.length === 0) {
             return res.status(404).json({
                 success: false,
                 message: "Subcategory not found"
@@ -114,16 +111,15 @@ const updateSubcategory = async (req, res) => {
         return res.status(200).json({
             success: true,
             message: "Subcategory updated successfully",
-            data: rows[0]
+            data: result.rows[0]
         });
 
     } catch (error) {
-        console.error("Update subcategory error:", error);
+        console.error(error);
 
         return res.status(500).json({
             success: false,
-            message: "Error in updating subcategory",
-            error: error.message
+            message: "Error updating subcategory"
         });
     }
 };
