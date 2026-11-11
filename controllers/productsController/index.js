@@ -1,4 +1,15 @@
 import pool from "../../connection/db.js";
+import uploadToCloudinary from "../../utils/uploadToCloudinary.js";
+
+function asNumber(value) {
+    const number = Number(value);
+    return Number.isFinite(number) ? number : null;
+}
+
+function asBoolean(value) {
+    if (typeof value === "boolean") return value;
+    return value !== "false" && value !== "0";
+}
 
 
 
@@ -29,38 +40,30 @@ const getProductById = async ( req, res) => {
 
 const createProduct = async (req, res) => {
     try {
-        const { name, description, category, price, image_url, stock_quantity, is_available } = req.body;
+        const { name, description, category_id, subcategory_id, mrp_price, selling_price, is_available, unit, net_quantity } = req.body;
+        const mrp = asNumber(mrp_price);
+        const selling = asNumber(selling_price);
+        const quantity = asNumber(net_quantity);
 
-        if (!name || !description || !category || !price || !image_url || !stock_quantity || !is_available) {
+        if (!name || !description || !category_id || !subcategory_id || mrp == null || selling == null || !unit || quantity == null) {
             return res.status(400).json({ error: "All fields are required" });
         }
-        if (typeof name !== "string" || typeof description !== "string" || typeof category !== "string" || typeof price !== "number" || typeof image_url !== "string" || typeof stock_quantity !== "number" || typeof is_available !== "boolean") {
-            return res.status(400).json({ error: "Invalid fields", message: error.message });
+        if (!req.file) {
+            return res.status(400).json({ error: "Product image is required" });
         }
-        if (price < 0) {
-            return res.status(400).json({ error: "Price must be greater than 0", message: error.message });
-        }
-        if (stock_quantity < 0) {
-            return res.status(400).json({ error: "Stock quantity must be greater than 0" });
-        }
-        if (is_available === undefined) {
-            is_available = true;
-        }
-        if (name.length > 150) {
-            return res.status(400).json({ error: "Name must be less than 150 characters" });
-        }
-        if (description.length > 1000) {
-            return res.status(400).json({ error: "Description must be less than 1000 characters" });
-        }
-        if (category.length > 100) {
-            return res.status(400).json({ error: "Category must be less than 100 characters" });
+        if (mrp < 0 || selling < 0 || quantity < 0) {
+            return res.status(400).json({ error: "Price and quantity must be greater than 0" });
         }
 
-        const { rows } = await pool.query("INSERT INTO products (name, description, category, price, image_url, stock_quantity, is_available) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *", [name, description, category, price, image_url, stock_quantity, is_available]);
-        return res.status(201).json({ rows, message: "Product created successfully" });
+        const { url } = await uploadToCloudinary(req.file.buffer, "products");
+        const { rows } = await pool.query(
+            "INSERT INTO products (name, description, category_id, subcategory_id, mrp_price, selling_price, product_image_url, is_available, unit, net_quantity) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *",
+            [name.trim(), description.trim(), category_id, subcategory_id, mrp, selling, url, asBoolean(is_available), unit.trim(), quantity]
+        );
+        return res.status(201).json({ data: rows[0], message: "Product created successfully" });
     } catch (error) {
         console.error("Error creating product:", error);
-        throw error;
+        return res.status(500).json({ message: "Error in creating product", error: error.message });
     }
 }
 
@@ -68,12 +71,40 @@ const createProduct = async (req, res) => {
 const updateProduct = async (req, res) => {
     try {
         const { id } = req.params;
-        const { name, description, category, price, image_url, stock_quantity, is_available } = req.body;
-        const { rows } = await pool.query("UPDATE products SET name = $1, description = $2, category = $3, price = $4, image_url = $5, stock_quantity = $6, is_available = $7 WHERE id = $8 RETURNING *", [name, description, category, price, image_url, stock_quantity, is_available, id]);
-        return res.status(200).json({ rows, message: "Product updated successfully" });
+        const existing = await pool.query("SELECT * FROM products WHERE id = $1", [id]);
+        if (existing.rows.length === 0) {
+            return res.status(404).json({ error: "Product not found" });
+        }
+
+        const current = existing.rows[0];
+        const { name, description, category_id, subcategory_id, mrp_price, selling_price, is_available, unit, net_quantity } = req.body;
+        let imageUrl = current.product_image_url;
+
+        if (req.file) {
+            const uploaded = await uploadToCloudinary(req.file.buffer, "products");
+            imageUrl = uploaded.url;
+        }
+
+        const { rows } = await pool.query(
+            "UPDATE products SET name = $1, description = $2, category_id = $3, subcategory_id = $4, mrp_price = $5, selling_price = $6, product_image_url = $7, is_available = $8, unit = $9, net_quantity = $10 WHERE id = $11 RETURNING *",
+            [
+                (name ?? current.name).trim(),
+                (description ?? current.description).trim(),
+                category_id || current.category_id,
+                subcategory_id || current.subcategory_id,
+                asNumber(mrp_price) ?? current.mrp_price,
+                asNumber(selling_price) ?? current.selling_price,
+                imageUrl,
+                is_available === undefined ? current.is_available : asBoolean(is_available),
+                (unit ?? current.unit).trim(),
+                asNumber(net_quantity) ?? current.net_quantity,
+                id,
+            ]
+        );
+        return res.status(200).json({ data: rows[0], message: "Product updated successfully" });
     } catch (error) {
         console.error("Error updating product:", error);
-        throw error;
+        return res.status(500).json({ message: "Error in updating product", error: error.message });
     }
 };
 
