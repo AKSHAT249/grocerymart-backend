@@ -7,9 +7,10 @@ const pool = new Pool({
   ssl: process.env.NODE_ENV === "production"
     ? { rejectUnauthorized: false }
     : false,
-  max: 10,
-  idleTimeoutMillis: 3000000,
-  connectionTimeoutMillis: 1000000,
+  max: 5,
+  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 10000,
+  keepAlive: true,
 });
 
 // Handle unexpected idle connection errors
